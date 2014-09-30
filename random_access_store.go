@@ -57,23 +57,23 @@ func NewSeekerWrapper(s RandomAccessStore) *SeekerWrapper {
 }
 
 type StoreReadWriter struct {
-	s    RandomAccessStore
-	pos  int64
-	size int64
+	Store    RandomAccessStore
+	Position int64
+	Size     int64
 }
 
 func (rw *StoreReadWriter) Write(p []byte) (int, error) {
-	n, err := rw.s.WriteAt(p, rw.pos)
-	rw.pos += int64(n)
+	n, err := rw.Store.WriteAt(p, rw.Position)
+	rw.Position += int64(n)
 	return n, err
 }
 
 func (rw *StoreReadWriter) Read(p []byte) (int, error) {
-	n, err := rw.s.ReadAt(p, rw.pos)
+	n, err := rw.Store.ReadAt(p, rw.Position)
 	if err == io.EOF {
-		rw.size = rw.pos + int64(n)
+		rw.Size = rw.Position + int64(n)
 	}
-	rw.pos += int64(n)
+	rw.Position += int64(n)
 	return n, err
 }
 
@@ -82,16 +82,16 @@ func (rw *StoreReadWriter) Close() error { return nil }
 func (rw *StoreReadWriter) Seek(pos int64, whence int) (int64, error) {
 	switch whence {
 	case os.SEEK_SET:
-		rw.pos = pos
+		rw.Position = pos
 	case os.SEEK_CUR:
-		rw.pos += pos
+		rw.Position += pos
 	case os.SEEK_END:
-		if rw.size < 0 {
+		if rw.Size < 0 {
 			return -1, errors.New("trying to seek to EOF while the store size is not known")
 		}
-		rw.pos = rw.size + pos
+		rw.Position = rw.Size + pos
 	}
-	return rw.pos, nil
+	return rw.Position, nil
 }
 
 type MemoryRandomAccessStore struct {
