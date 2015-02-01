@@ -4,6 +4,8 @@ import (
 	"io"
 )
 
+// CloseHook wraps a io.Closer so that it will call the specified callback function on closing the
+// channel.  The callback will only be called on an explicit close operation by the user.
 type CloseHook struct {
 	IOCombo
 	Callback func(s io.Closer)
@@ -18,6 +20,7 @@ func (c *CloseHook) Close() error {
 	return nil
 }
 
+// Creates a new CloseHook from a io.Closer and a callback that will be called on Close().
 func NewCloseHook(c io.Closer, callback func(s io.Closer)) *CloseHook {
 	reader, _ := c.(io.Reader)
 	contextualReader, _ := c.(ContextualReader)

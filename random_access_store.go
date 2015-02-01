@@ -7,38 +7,47 @@ import (
 	"os"
 )
 
+// RandomAccessStore models an I/O channel for a blob.
 type RandomAccessStore interface {
 	io.ReaderAt
 	io.WriterAt
 	io.Closer
 }
 
+// SizedRandomAccessStore models an I/O channel for a blob is supposed to have a specific size.
 type SizedRandomAccessStore interface {
 	RandomAccessStore
 	Size() (int64, error)
 }
 
+// NamedRandomAccessStore models an I/O channel for a named blob (probably a file)
 type NamedRandomAccessStore interface {
 	RandomAccessStore
 	Name() string
 }
 
+// RandomAccessStoreFactory creates a RandomAccessStore instance.
 type RandomAccessStoreFactory interface {
 	RandomAccessStore() (RandomAccessStore, error)
 }
 
+// SeekerWrapper wraps a RandomAccessStore for it to behave as io.Seeker.
 type SeekerWrapper struct {
 	s  RandomAccessStore
 	sk io.Seeker
 	ns NamedRandomAccessStore
 }
 
+// Just delegates the operation to the underlying RandomAccessStore's ReadAt() method.
 func (s *SeekerWrapper) ReadAt(p []byte, offset int64) (int, error) { return s.s.ReadAt(p, offset) }
 
+// Just delegates the operation to the underlying RandomAccessStore's WriteAt() method.
 func (s *SeekerWrapper) WriteAt(p []byte, offset int64) (int, error) { return s.s.WriteAt(p, offset) }
 
+// Just delegates the operation to the underlying RandomAccessStore's Close() method.
 func (s *SeekerWrapper) Close() error { return s.s.Close() }
 
+// If the underlying RandomAccessStore also provides NamedRandomAccessStore, delegates the call to its Name() method.  Otherwise, returns an empty string.
 func (s *SeekerWrapper) Name() string {
 	if s.ns != nil {
 		return s.ns.Name()
@@ -47,15 +56,18 @@ func (s *SeekerWrapper) Name() string {
 	}
 }
 
+// Just delegates the operation to the underlying RandomAccessStore's Size() method.
 func (s *SeekerWrapper) Size() (int64, error) {
 	return s.sk.Seek(0, os.SEEK_END)
 }
 
+// Creates a new SeekerWrapper instance.
 func NewSeekerWrapper(s RandomAccessStore) *SeekerWrapper {
 	ns, _ := s.(NamedRandomAccessStore)
 	return &SeekerWrapper{s, s.(io.Seeker), ns}
 }
 
+// StoreReadWriter wraps a RandomAccessStore for it to behave like io.Reader or io.Writer.
 type StoreReadWriter struct {
 	Store    RandomAccessStore
 	Position int64
@@ -94,6 +106,7 @@ func (rw *StoreReadWriter) Seek(pos int64, whence int) (int64, error) {
 	return rw.Position, nil
 }
 
+// MemoryRandomAccessStore implements a RandomAccessStore backed by a byte slice.
 type MemoryRandomAccessStore struct {
 	buf []byte
 }
@@ -147,6 +160,9 @@ func (ras *MemoryRandomAccessStoreFactory) RandomAccessStore() (RandomAccessStor
 	return NewMemoryRandomAccessStore(), nil
 }
 
+// TempFileRandomAccessStoreFactory implements a RandomAccessStore backed by a temporary file
+// that is created by ioutil.TempFIle.
+// If the RandomAccessStore is closed, the underlying temporary file is deleted accordingly.
 type TempFileRandomAccessStoreFactory struct {
 	Dir    string
 	Prefix string

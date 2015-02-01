@@ -5,8 +5,15 @@ import (
 	"errors"
 )
 
+// Returned by IOCombo methods when the specified operation is not supported by the underlying
+// implementation.
 var Unsupported = errors.New("Unsupported operation")
 
+// IOCombo wraps any I/O primitives interface in the way the resulting object provides
+// all of the I/O privimites provided by io package as well as by ioextra.
+//
+// Call on an unsupported operation returns Unsupported error.
+//
 type IOCombo struct {
 	Reader io.Reader
 	ReaderAt io.ReaderAt
