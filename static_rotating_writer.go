@@ -27,10 +27,17 @@ import (
 	"sync/atomic"
 )
 
-type PathBuilder func(interface{}) (string, error)
-type WriterFactory func(string, interface{}) (io.Writer, error)
+// PathBuilder is supposed to return the path to the file to write the data to.
+// The argument is the value passed as the second argument of WriteWithCtx().
+type PathBuilder func(ctx interface{}) (string, error)
 
+// WriterFactory is supposed to return an io.Writer object according to the arguments.
+// The first argument is the path to the file for which io.Writer is prepared, and the second
+// argument is the value passed as the second argument of WriteWithCtx().
+type WriterFactory func(path string, ctx interface{}) (io.Writer, error)
 
+// CloserErrorPair identifies the place where the I/O error has occurred during closing the
+// file.
 type CloserErrorPair struct {
 	Closer io.Closer
 	Error error
@@ -43,6 +50,9 @@ type writerEntry struct {
 	closeErrorReportChan chan<- CloserErrorPair
 }
 
+// StaticRotatingWriter is an io.Writer that writes the data to the file whose path is determined
+// by the given PathBuilder.  It can be used in combination with the standard log package to
+// support logging to rotating files.
 type StaticRotatingWriter struct {
 	PathBuilder PathBuilder
 	WriterFactory WriterFactory
@@ -74,10 +84,14 @@ func (w *writerEntry) delRef() bool {
 	return false
 }
 
+// Write() method of io.Writer() interface.  This simply calls WriteWithCtx() with the second argument
+// being nil.
 func (w *StaticRotatingWriter) Write(b []byte) (int, error) {
 	return w.WriteWithCtx(b, nil)
 }
 
+// WriteWithCtx() method of ContextualWriter interface.  This function is designed to be reentrant,
+// and takes care of the situation where multiple writes to the different files occur simultaneously.
 func (w *StaticRotatingWriter) WriteWithCtx(b []byte, ctx interface{}) (int, error) {
 	path, err := w.PathBuilder(ctx)
 	if err != nil {
@@ -125,6 +139,8 @@ func (w *StaticRotatingWriter) WriteWithCtx(b []byte, ctx interface{}) (int, err
 	return we.w.Write(b)
 }
 
+// Closes the opened files.  It needs to be made sure that this is called after all the ongoing write
+// operations have been done.  Otherwise the files may be left open.
 func (w *StaticRotatingWriter) Close() error {
 	w.writersMtx.Lock()
 	defer w.writersMtx.Unlock()
@@ -141,6 +157,11 @@ func (w *StaticRotatingWriter) Close() error {
 	return nil
 }
 
+// Creates a new StaticRotatingWriter.  Pass StandardWriterFactory as writerFactory if you aren't
+// interested in any contextual information passed as the second argument of WriteWithCtx() when
+// opening the file.  closeErrorReportChan is a channel that will asynchronously receive errors
+// that occur during closing files that have been opened bby writerFastory.  closeErrorReportChan
+// can be nil.
 func NewStaticRotatingWriter(pathBuilder PathBuilder, writerFactory WriterFactory, closeErrorReportChan chan<-CloserErrorPair) *StaticRotatingWriter {
 	if closeErrorReportChan == nil {
 		closeErrorReportChan_ := make(chan CloserErrorPair)
@@ -158,6 +179,8 @@ func NewStaticRotatingWriter(pathBuilder PathBuilder, writerFactory WriterFactor
 	}
 }
 
+// Just a thin wrapper of os.OpenFile, passing os.O_CREATE | os.O_WRONLY | os.O_APPEND to
+// the second argument and os.FileMode(0666) as the third argument.
 func StandardWriterFactory(path string, _ interface{}) (io.Writer, error) {
 	return os.OpenFile(path, os.O_CREATE | os.O_WRONLY | os.O_APPEND, os.FileMode(0666))
 }

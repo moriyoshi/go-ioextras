@@ -29,8 +29,12 @@ import (
 // implementation.
 var Unsupported = errors.New("Unsupported operation")
 
-// IOCombo wraps any I/O primitives interface in the way the resulting object provides
-// all of the I/O privimites provided by io package as well as by ioextra.
+// IOCombo combines objects implementing I/O primitives interfaces in the way it would virtually
+// provide all of the I/O privimites supported by the given objects.
+//
+// Typical usage is to provide extra primitives interfaces such as io.Closer for a single I/O
+// privimitives interface like io.Reader.  In that case, ioutil.NopCloser() can be used instead
+// unless any operation is needed in a call to Close() method.
 //
 // Call on an unsupported operation returns the Unsupported error (that is a singleton).
 //
