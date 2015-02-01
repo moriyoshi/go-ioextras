@@ -1,15 +1,15 @@
 // Copyright (c) 2014-2015 Moriyoshi Koizumi
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -21,9 +21,9 @@
 package ioextras
 
 import (
+	"fmt"
 	"io"
 	"os"
-	"fmt"
 	"sync"
 )
 
@@ -31,23 +31,23 @@ type IDBuilder func(ctx interface{}) string
 type HeadPathGenerator func(ctx interface{}) string
 
 type RotationEvent struct {
-	ID string
+	ID   string
 	Path string
 }
 
 type RotationCallback func(ID, Path string, ctx interface{}) error
 
 type DynamicRotatingWriter struct {
-	IDBuilder IDBuilder
-	WriterFactory WriterFactory
-	HeadPathGenerator HeadPathGenerator
-	RotationCallback RotationCallback
+	IDBuilder            IDBuilder
+	WriterFactory        WriterFactory
+	HeadPathGenerator    HeadPathGenerator
+	RotationCallback     RotationCallback
 	CloseErrorReportChan chan<- CloserErrorPair
-	mtx sync.Mutex
-	currentID string
-	currentWriter io.Writer
-	currentPath string
-	closed bool
+	mtx                  sync.Mutex
+	currentID            string
+	currentWriter        io.Writer
+	currentPath          string
+	closed               bool
 }
 
 func (w *DynamicRotatingWriter) Write(b []byte) (int, error) {
@@ -114,23 +114,24 @@ func (w *DynamicRotatingWriter) Close() error {
 	return nil
 }
 
-func NewDynamicRotatingWriter(idBuilder IDBuilder, writerFactory WriterFactory, headPathGenerator HeadPathGenerator, rotationCallback RotationCallback, closeErrorReportChan chan<-CloserErrorPair) *DynamicRotatingWriter {
+func NewDynamicRotatingWriter(idBuilder IDBuilder, writerFactory WriterFactory, headPathGenerator HeadPathGenerator, rotationCallback RotationCallback, closeErrorReportChan chan<- CloserErrorPair) *DynamicRotatingWriter {
 	if closeErrorReportChan == nil {
 		closeErrorReportChan_ := make(chan CloserErrorPair)
 		closeErrorReportChan = (chan<- CloserErrorPair)(closeErrorReportChan_)
 		go func() {
-			for _ = range closeErrorReportChan_ {} // just ignoring errors
+			for _ = range closeErrorReportChan_ {
+			} // just ignoring errors
 		}()
 	}
-	return &DynamicRotatingWriter {
-		IDBuilder: idBuilder,
-		WriterFactory: writerFactory,
-		HeadPathGenerator: headPathGenerator,
-		RotationCallback: rotationCallback,
+	return &DynamicRotatingWriter{
+		IDBuilder:            idBuilder,
+		WriterFactory:        writerFactory,
+		HeadPathGenerator:    headPathGenerator,
+		RotationCallback:     rotationCallback,
 		CloseErrorReportChan: closeErrorReportChan,
-		currentID: "",
-		currentWriter: nil,
-		currentPath: "",
+		currentID:            "",
+		currentWriter:        nil,
+		currentPath:          "",
 	}
 }
 
@@ -147,11 +148,11 @@ func makeRoom(basePath string, n int, maxFiles int) (string, error) {
 		}
 		return "", err
 	}
-	if n + 1 >= maxFiles {
+	if n+1 >= maxFiles {
 		err = os.Remove(path)
 	} else {
 		var path_ string
-		path_, err = makeRoom(basePath, n + 1, maxFiles)
+		path_, err = makeRoom(basePath, n+1, maxFiles)
 		if err != nil {
 			return "", err
 		}
@@ -160,9 +161,8 @@ func makeRoom(basePath string, n int, maxFiles int) (string, error) {
 	return path, err
 }
 
-
 func SerialRotationCallbackFactory(maxFiles int) RotationCallback {
-	return func (id string, path string, _ interface{}) error {
+	return func(id string, path string, _ interface{}) error {
 		newPath, err := makeRoom(path, 0, maxFiles)
 		if err != nil {
 			return err

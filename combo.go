@@ -1,15 +1,15 @@
 // Copyright (c) 2014-2015 Moriyoshi Koizumi
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -21,8 +21,8 @@
 package ioextras
 
 import (
-	"io"
 	"errors"
+	"io"
 )
 
 // Returned by IOCombo methods when the specified operation is not supported by the underlying
@@ -39,17 +39,17 @@ var Unsupported = errors.New("Unsupported operation")
 // Call on an unsupported operation returns the Unsupported error (that is a singleton).
 //
 type IOCombo struct {
-	Reader io.Reader
-	ReaderAt io.ReaderAt
+	Reader           io.Reader
+	ReaderAt         io.ReaderAt
 	ContextualReader ContextualReader
-	Writer io.Writer
-	WriterAt io.WriterAt
+	Writer           io.Writer
+	WriterAt         io.WriterAt
 	ContextualWriter ContextualWriter
-	Seeker io.Seeker
-	Closer io.Closer
-	Flusher Flusher
-	Sized Sized
-	Named Named
+	Seeker           io.Seeker
+	Closer           io.Closer
+	Flusher          Flusher
+	Sized            Sized
+	Named            Named
 }
 
 func (w *IOCombo) Read(b []byte) (int, error) {

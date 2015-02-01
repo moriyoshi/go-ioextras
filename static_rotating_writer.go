@@ -1,15 +1,15 @@
 // Copyright (c) 2014-2015 Moriyoshi Koizumi
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -21,8 +21,8 @@
 package ioextras
 
 import (
-	"os"
 	"io"
+	"os"
 	"sync"
 	"sync/atomic"
 )
@@ -40,13 +40,13 @@ type WriterFactory func(path string, ctx interface{}) (io.Writer, error)
 // file.
 type CloserErrorPair struct {
 	Closer io.Closer
-	Error error
+	Error  error
 }
 
 type writerEntry struct {
-	path string
-	w io.Writer
-	refs int64
+	path                 string
+	w                    io.Writer
+	refs                 int64
 	closeErrorReportChan chan<- CloserErrorPair
 }
 
@@ -54,11 +54,11 @@ type writerEntry struct {
 // by the given PathBuilder.  It can be used in combination with the standard log package to
 // support logging to rotating files.
 type StaticRotatingWriter struct {
-	PathBuilder PathBuilder
-	WriterFactory WriterFactory
+	PathBuilder          PathBuilder
+	WriterFactory        WriterFactory
 	CloseErrorReportChan chan<- CloserErrorPair
-	writersMtx sync.Mutex
-	writers map[string]*writerEntry
+	writersMtx           sync.Mutex
+	writers              map[string]*writerEntry
 }
 
 func (w *writerEntry) addRef() {
@@ -73,7 +73,7 @@ func (w *writerEntry) delRef() bool {
 			err := c.Close()
 			if err != nil {
 				if w.closeErrorReportChan != nil {
-					w.closeErrorReportChan <- CloserErrorPair { c, err }
+					w.closeErrorReportChan <- CloserErrorPair{c, err}
 				}
 			}
 		}
@@ -115,11 +115,11 @@ func (w *StaticRotatingWriter) WriteWithCtx(b []byte, ctx interface{}) (int, err
 			if err != nil {
 				return nil, err
 			}
-			we = &writerEntry {
-				path: path,
-				w: w_,
-				refs: 1,
-				closeErrorReportChan: (chan<-CloserErrorPair)(w.CloseErrorReportChan),
+			we = &writerEntry{
+				path:                 path,
+				w:                    w_,
+				refs:                 1,
+				closeErrorReportChan: (chan<- CloserErrorPair)(w.CloseErrorReportChan),
 			}
 			w.writers[path] = we
 		}
@@ -162,25 +162,26 @@ func (w *StaticRotatingWriter) Close() error {
 // opening the file.  closeErrorReportChan is a channel that will asynchronously receive errors
 // that occur during closing files that have been opened bby writerFastory.  closeErrorReportChan
 // can be nil.
-func NewStaticRotatingWriter(pathBuilder PathBuilder, writerFactory WriterFactory, closeErrorReportChan chan<-CloserErrorPair) *StaticRotatingWriter {
+func NewStaticRotatingWriter(pathBuilder PathBuilder, writerFactory WriterFactory, closeErrorReportChan chan<- CloserErrorPair) *StaticRotatingWriter {
 	if closeErrorReportChan == nil {
 		closeErrorReportChan_ := make(chan CloserErrorPair)
 		closeErrorReportChan = (chan<- CloserErrorPair)(closeErrorReportChan_)
 		go func() {
-			for _ = range closeErrorReportChan_ {} // just ignoring errors
+			for _ = range closeErrorReportChan_ {
+			} // just ignoring errors
 		}()
 	}
-	return &StaticRotatingWriter {
-		PathBuilder: pathBuilder,
-		WriterFactory: writerFactory,
+	return &StaticRotatingWriter{
+		PathBuilder:          pathBuilder,
+		WriterFactory:        writerFactory,
 		CloseErrorReportChan: closeErrorReportChan,
-		writersMtx: sync.Mutex{},
-		writers: make(map[string]*writerEntry),
+		writersMtx:           sync.Mutex{},
+		writers:              make(map[string]*writerEntry),
 	}
 }
 
 // Just a thin wrapper of os.OpenFile, passing os.O_CREATE | os.O_WRONLY | os.O_APPEND to
 // the second argument and os.FileMode(0666) as the third argument.
 func StandardWriterFactory(path string, _ interface{}) (io.Writer, error) {
-	return os.OpenFile(path, os.O_CREATE | os.O_WRONLY | os.O_APPEND, os.FileMode(0666))
+	return os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, os.FileMode(0666))
 }

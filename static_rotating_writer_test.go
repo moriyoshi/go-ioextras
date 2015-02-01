@@ -1,15 +1,15 @@
 // Copyright (c) 2014-2015 Moriyoshi Koizumi
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -21,19 +21,19 @@
 package ioextras
 
 import (
-	"testing"
-	"io"
-	"sync"
 	"bytes"
+	"io"
 	"strconv"
+	"sync"
 	"sync/atomic"
+	"testing"
 )
 
 type dummyCloser struct {
 	results *[][]byte
-	w *bytes.Buffer
-	l sync.Mutex
-	wg *sync.WaitGroup
+	w       *bytes.Buffer
+	l       sync.Mutex
+	wg      *sync.WaitGroup
 }
 
 func (c *dummyCloser) Close() error {
@@ -55,7 +55,7 @@ func TestStaticRotatingWriter(t *testing.T) {
 			count += 1
 			return strconv.Itoa(count / 2), nil
 		},
-		func (path string, ctx interface{}) (io.Writer, error) {
+		func(path string, ctx interface{}) (io.Writer, error) {
 			w := &bytes.Buffer{}
 			writers = append(writers, w)
 			return &IOCombo{Writer: w, Closer: &dummyCloser{&results, w, sync.Mutex{}, nil}}, nil
@@ -69,20 +69,34 @@ func TestStaticRotatingWriter(t *testing.T) {
 	w.Write([]byte("eee"))
 	w.Write([]byte("fff"))
 	t.Logf("len(writers)=%d", len(writers))
-	if len(writers) != 3 { t.Fail() }
+	if len(writers) != 3 {
+		t.Fail()
+	}
 	t.Logf("len(results)=%d", len(results))
-	if len(results) != 2 { t.Fail() }
-	if !bytes.Equal(writers[0].Bytes(), []byte("aaabbb")) { t.Fail() }
-	if !bytes.Equal(writers[0].Bytes(), results[0]) { t.Fail() }
-	if !bytes.Equal(writers[1].Bytes(), []byte("cccddd")) { t.Fail() }
-	if !bytes.Equal(writers[1].Bytes(), results[1]) { t.Fail() }
-	if !bytes.Equal(writers[2].Bytes(), []byte("eeefff")) { t.Fail() }
+	if len(results) != 2 {
+		t.Fail()
+	}
+	if !bytes.Equal(writers[0].Bytes(), []byte("aaabbb")) {
+		t.Fail()
+	}
+	if !bytes.Equal(writers[0].Bytes(), results[0]) {
+		t.Fail()
+	}
+	if !bytes.Equal(writers[1].Bytes(), []byte("cccddd")) {
+		t.Fail()
+	}
+	if !bytes.Equal(writers[1].Bytes(), results[1]) {
+		t.Fail()
+	}
+	if !bytes.Equal(writers[2].Bytes(), []byte("eeefff")) {
+		t.Fail()
+	}
 }
 
 type fancyWriter struct {
-	w io.Writer
+	w             io.Writer
 	condFulfilled *bool
-	cond *sync.Cond
+	cond          *sync.Cond
 }
 
 func (w *fancyWriter) Write(b []byte) (int, error) {
@@ -112,7 +126,7 @@ func TestStaticRotatingWriterConcurrent(t *testing.T) {
 					c := atomic.AddInt64(&count, 1)
 					return strconv.Itoa(int(c)), nil
 				},
-				func (path string, ctx interface{}) (io.Writer, error) {
+				func(path string, ctx interface{}) (io.Writer, error) {
 					writersMtx.Lock()
 					defer writersMtx.Unlock()
 					w := &bytes.Buffer{}
@@ -134,9 +148,13 @@ func TestStaticRotatingWriterConcurrent(t *testing.T) {
 			cond.L.Unlock()
 			wg.Wait()
 			t.Logf("len(writers)=%d", len(writers))
-			if len(writers) != 6 { t.Fail() }
+			if len(writers) != 6 {
+				t.Fail()
+			}
 			t.Logf("len(results)=%d", len(results))
-			if len(results) != 5 { t.Fail() }
+			if len(results) != 5 {
+				t.Fail()
+			}
 		}()
 	}
 	wg.Wait()
