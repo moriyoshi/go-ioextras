@@ -32,7 +32,7 @@ var Unsupported = errors.New("Unsupported operation")
 // IOCombo wraps any I/O primitives interface in the way the resulting object provides
 // all of the I/O privimites provided by io package as well as by ioextra.
 //
-// Call on an unsupported operation returns Unsupported error.
+// Call on an unsupported operation returns the Unsupported error (that is a singleton).
 //
 type IOCombo struct {
 	Reader io.Reader
