@@ -18,53 +18,62 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 
-package ioextras
+package ioextras_test
 
 import (
+	"github.com/moriyoshi/go-ioextras"
 	"io"
-	"io/ioutil"
+	"log"
 	"os"
-	"path/filepath"
 	"strconv"
-	"testing"
 )
 
-func TestDynamicRotatingWriter(t *testing.T) {
-	count := 0
-	baseDir, err := ioutil.TempDir("", "test")
-	if err != nil {
-		t.Logf("%v", err)
-		t.FailNow()
-	}
-	defer os.RemoveAll(baseDir)
-	w := NewDynamicRotatingWriter(
-		func(_ io.Writer, _ interface{}) string {
-			count += 1
-			return strconv.Itoa(count)
+func ExampleDynamicRotatingWriter() {
+	currentId := 0
+	maxSize := int64(4)
+	w := ioextras.NewDynamicRotatingWriter(
+		// IDBuilder
+		func(f io.Writer, _ interface{}) string {
+			_f, ok := f.(*os.File)
+			if !ok {
+				panic("WTF?")
+			}
+			fi, err := _f.Stat()
+			if err != nil {
+				return strconv.Itoa(currentId)
+			}
+			if fi.Size() > maxSize {
+				currentId++
+			}
+			return strconv.Itoa(currentId)
 		},
-		StandardWriterFactory,
-		func(_ string, _ interface{}) string {
-			return filepath.Join(baseDir, "TEST")
+		// WriterFactory
+		ioextras.StandardWriterFactory,
+		// HeadPathGenerator
+		func(id string, _ interface{}) string {
+			return "/tmp/demo.log"
 		},
-		SerialRotationCallbackFactory(3),
+		// RotationCallback
+		ioextras.SerialRotationCallbackFactory(3),
+		// CloseErrorReportChan
 		nil,
 	)
-	w.Write([]byte("aaa\n"))
-	w.Write([]byte("bbb\n"))
-	w.Write([]byte("ccc\n"))
-	w.Write([]byte("ddd\n"))
-	w.Write([]byte("eee\n"))
-	w.Write([]byte("fff\n"))
-	w.Write([]byte("ggg\n"))
-	c := 0
-	filepath.Walk(baseDir, func(path string, info os.FileInfo, err error) error {
-		if !info.IsDir() {
-			c += 1
-		}
-		return err
-	})
-	if c != 4 {
-		t.Logf("%d (%d)", c, count)
-		t.Fail()
+	var err error
+
+	_ ,err = w.Write([]byte("test"))
+	if err != nil {
+		log.Fatalf("error writing data: %v", err)
+	}
+	_, err = w.Write([]byte("test"))
+	if err != nil {
+		log.Fatalf("error writing data: %v", err)
+	}
+	_, err = w.Write([]byte("test"))
+	if err != nil {
+		log.Fatalf("error writing data: %v", err)
+	}
+	_, err = w.Write([]byte("test"))
+	if err != nil {
+		log.Fatalf("error writing data: %v", err)
 	}
 }

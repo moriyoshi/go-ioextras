@@ -27,16 +27,25 @@ import (
 	"sync"
 )
 
-type IDBuilder func(ctx interface{}) string
-type HeadPathGenerator func(ctx interface{}) string
+// IDBuilder is supposed to return a string that determines the rotation cycle.
+// Rotation occurs when it returns an identifier different from the one obtained during
+// the previous call to WriteWithCtx() method.
+// ctx argument is the value passed to WriteWithCtx() method as the second argument.
+type IDBuilder func(w io.Writer, ctx interface{}) string
 
-type RotationEvent struct {
-	ID   string
-	Path string
-}
+// HeadPathGenerator is supposed to return the path to the file data is written to.
+// Generally the path is a static location.
+// ctx argument is the value passed to WriteWithCtx() method as the second argument.
+type HeadPathGenerator func(ID string, ctx interface{}) string
 
-type RotationCallback func(ID, Path string, ctx interface{}) error
+// RotationCallback is called when rotation occurs.  Typically the callback would rename the
+// file specified by path to something like xxx.1 so that the generated files are rotating.
+type RotationCallback func(ID, path string, ctx interface{}) error
 
+// DynamicRotatingWriter is an io.Writer that writes the data to the file determined by
+// HeadPathGenerator until the next rotation cycle.  The rotation cycle is determined by the return
+// value of IDBuilder.  The file is created by WriterFactory.  RotationCallback will be called
+// on rotation.
 type DynamicRotatingWriter struct {
 	IDBuilder            IDBuilder
 	WriterFactory        WriterFactory
@@ -50,17 +59,21 @@ type DynamicRotatingWriter struct {
 	closed               bool
 }
 
+// Write() method of io.Writer() interface.  This simply calls WriteWithCtx() with the second argument
+// being nil.
 func (w *DynamicRotatingWriter) Write(b []byte) (int, error) {
 	return w.WriteWithCtx(b, nil)
 }
 
+// WriteWithCtx() method of ContextualWriter interface.  This function is designed to be reentrant,
+// Because of the dynamic nature of 
 func (w *DynamicRotatingWriter) WriteWithCtx(b []byte, ctx interface{}) (int, error) {
 	w.mtx.Lock()
 	defer w.mtx.Unlock()
 	if w.closed {
 		return 0, io.EOF
 	}
-	id := w.IDBuilder(ctx)
+	id := w.IDBuilder(w, ctx)
 	if id != w.currentID || w.currentWriter == nil {
 		if w.currentWriter != nil {
 			c, ok := (w.currentWriter).(io.Closer)
@@ -81,7 +94,7 @@ func (w *DynamicRotatingWriter) WriteWithCtx(b []byte, ctx interface{}) (int, er
 			}
 			w.currentPath = ""
 		}
-		path := w.HeadPathGenerator(ctx)
+		path := w.HeadPathGenerator(id, ctx)
 		wr, err := w.WriterFactory(path, ctx)
 		if err != nil {
 			return 0, err
@@ -114,6 +127,11 @@ func (w *DynamicRotatingWriter) Close() error {
 	return nil
 }
 
+// Creates a new DynamicRotatingWriter. Pass StandardWriterFactory as writerFactory if you aren't
+// interested in any contextual information passed as the second argument of WriteWithCtx() when
+// opening the file.  closeErrorReportChan is a channel that will asynchronously receive errors
+// that occur during closing files that have been opened bby writerFastory.  closeErrorReportChan
+// can be nil.
 func NewDynamicRotatingWriter(idBuilder IDBuilder, writerFactory WriterFactory, headPathGenerator HeadPathGenerator, rotationCallback RotationCallback, closeErrorReportChan chan<- CloserErrorPair) *DynamicRotatingWriter {
 	if closeErrorReportChan == nil {
 		closeErrorReportChan_ := make(chan CloserErrorPair)
@@ -161,6 +179,10 @@ func makeRoom(basePath string, n int, maxFiles int) (string, error) {
 	return path, err
 }
 
+// This is a factory function that returns a typical implementation of RotationCallback which
+// move the file specified by path argument to the one suffixed by ".1" after moving the file
+// in the destination path to that with the suffix changed to what the number part is incremented by one
+// (".2" for ".1").  Renaming is done accordingly until at most maxFile number of files remain.
 func SerialRotationCallbackFactory(maxFiles int) RotationCallback {
 	return func(id string, path string, _ interface{}) error {
 		newPath, err := makeRoom(path, 0, maxFiles)
